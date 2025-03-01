@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <ios>
 #include <iostream>
 #include <fstream>
@@ -52,6 +53,23 @@ void writeFile(const fs::path& path, const std::vector<char>& file_data){
     }
 }
 
+
+template<typename T>
+void change_byte_data(char* data, size_t count, std::function<void(T&)> func){
+    auto COPYBYTECOUNT = sizeof(T)*count;
+
+    std::vector<T> buf{};
+    buf.resize(count);
+
+    std::memcpy(buf.data(), data, COPYBYTECOUNT);
+
+   for (auto& item : buf) {
+        func(item);
+   }
+
+   std::memcpy(data, buf.data(), COPYBYTECOUNT);
+
+}
 
 int main(int argc, char* argv[]) try {
     // 参数验证
@@ -104,22 +122,22 @@ int main(int argc, char* argv[]) try {
 
     const auto  itemindex = countindex+4;
 
-    auto* const item = (party_data*)&file_data[itemindex];
+    change_byte_data<party_data>(&file_data[itemindex], count,[](party_data& item){
 
-    for (uint32_t n =1; n< count; n++) {
-        auto* const v = &item[n];
+        if(item.type==0){return ;}
 
-        std::cout  <<"type:"<< v->type<<" count:" << v->count<<std::endl;
+        std::cout  <<"type:"<< item.type<<" count:" << item.count<<std::endl;
 
 
         uint32_t incount;
 
         std::cin>>incount;
 
-        v->count=incount;
+        item.count=incount;
 
-        std::cout<<"change" <<"type:"<< v->type<<" count:" << v->count<<std::endl;
-    }
+        std::cout<<"change" <<"type:"<< item.type<<" count:" << item.count<<std::endl;
+
+    });
 
 
     writeFile(input_path, file_data);
