@@ -8,6 +8,7 @@
 #include <fstream>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 #include <algorithm>
 #include <filesystem>
@@ -26,7 +27,6 @@ struct party_data{
 
     uint32_t b;
 };
-
 
 std::vector<char> readFile(const fs::path& path){
     // 读取文件内容
@@ -53,8 +53,28 @@ void writeFile(const fs::path& path, const std::vector<char>& file_data){
     }
 }
 
+template<typename T>
+requires (std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>)
+T read_byte_data(char* data){
+    auto COPYBYTECOUNT = sizeof(T);
+    T v{};
+    std::memcpy(&v, data, COPYBYTECOUNT);
+
+    return v;
+}
 
 template<typename T>
+requires (std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>)
+void write_byte_data(char* data, T v){
+    auto COPYBYTECOUNT = sizeof(T);
+   
+    std::memcpy(data, &v, COPYBYTECOUNT);
+
+}
+
+
+template<typename T>
+requires (std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>)
 void change_byte_data(char* data, size_t count, std::function<void(T&)> func){
     auto COPYBYTECOUNT = sizeof(T)*count;
 
@@ -102,25 +122,27 @@ int main(int argc, char* argv[]) try {
     
     const auto namelengthindex = (size_t)start_pos+target_str.size();
 
-    const uint32_t* const namelength = (uint32_t*)&file_data[namelengthindex];
 
+    const auto namelength = read_byte_data<uint32_t>(&file_data[namelengthindex]);
+   
    
     //std::endian
     //std::byteswap
     //__builtin_bswap32 
     //_byteswap_ulong
 
-    std::cout<< *namelength<<std::endl;
+    std::cout<<"namelength"<< namelength<<std::endl;
 
     
-    const auto countindex = namelengthindex+4+*namelength+ 68;
+    const auto countindex = namelengthindex+4+namelength+ 68;
 
-
-    const uint32_t count = *((uint32_t*)&file_data[countindex]);
- 
-    std::cout << count<<std::endl;
+    const uint32_t count = read_byte_data<uint32_t>(&file_data[countindex]);
+   
+    std::cout <<"count" << count<<std::endl;
 
     const auto  itemindex = countindex+4;
+
+
 
     change_byte_data<party_data>(&file_data[itemindex], count,[](party_data& item){
 
@@ -143,7 +165,7 @@ int main(int argc, char* argv[]) try {
     writeFile(input_path, file_data);
 
 
-
+    return 0;;
 
 } catch (const std::exception& e) {
     std::cerr << "错误: " << e.what() << '\n';
